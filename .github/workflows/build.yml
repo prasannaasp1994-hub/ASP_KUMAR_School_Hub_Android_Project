@@ -1,0 +1,36 @@
+name: Build ASP Kumar School Hub APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Extract Android project
+        run: |
+          unzip -o ASP_KUMAR_School_Hub_Dashboard_Interface.zip -d project
+          find project -name settings.gradle -print
+
+      - name: Build APK
+        run: |
+          PROJECT=$(dirname "$(find project -name settings.gradle | head -1)")
+          cd "$PROJECT"
+          gradle --version
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASP-KUMAR-SCHOOL-HUB-APK
+          path: project/**/app/build/outputs/apk/debug/*.apk
+          
