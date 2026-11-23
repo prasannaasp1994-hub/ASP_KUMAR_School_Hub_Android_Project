@@ -1,4 +1,4 @@
-name: ASP KUMAR SCHOOL HUB APK
+name: ASP KUMAR SCHOOL HUB APK BUILD
 
 on:
   workflow_dispatch:
@@ -20,26 +20,35 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Find Android Project ZIP
-        shell: bash
+      - name: Find and Extract Android Project
         run: |
           set -e
-          ZIP=$(find . -type f \
-            -name '*BACK_HOME_DESKTOP.zip' \
-            -not -path './.git/*' | head -1)
-
+          ZIP=$(find . -type f -name '*BACK_HOME_DESKTOP.zip' | head -1)
           if [ -z "$ZIP" ]; then
-            echo "ERROR: Updated ZIP not found"
-            echo "Upload the BACK_HOME_DESKTOP ZIP"
-            find . -maxdepth 3 -type f
+            echo "Updated Android ZIP not found"
             exit 1
           fi
-
           mkdir -p extracted
           unzip -o "$ZIP" -d extracted
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android SDK Packages
+        shell: bash
+        run: |
+          set -e
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -name sdkmanager -type f | head -1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "SDK Manager not found"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses || true
+
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -47,14 +56,12 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build APK
-        shell: bash
         run: |
           set -e
-          FILE=$(find extracted -name settings.gradle \
-            -type f | head -1)
+          FILE=$(find extracted -name settings.gradle -type f | head -1)
 
           if [ -z "$FILE" ]; then
-            echo "ERROR: Android project not found"
+            echo "Gradle project not found"
             exit 1
           fi
 
