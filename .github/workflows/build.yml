@@ -1,4 +1,4 @@
-name: ASP KUMAR SCHOOL HUB APK BUILD
+name: ASP KUMAR SCHOOL HUB APK
 
 on:
   workflow_dispatch:
@@ -20,51 +20,53 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Extract Android Project
+      - name: Find Android Project ZIP
+        shell: bash
         run: |
-          echo "Searching for Android project..."
+          set -e
+          ZIP=$(find . -type f \
+            -name '*BACK_HOME_DESKTOP.zip' \
+            -not -path './.git/*' | head -1)
 
-          if find . -name settings.gradle | grep -q .; then
-            echo "Project already extracted"
-          else
-            ZIP=$(find . -maxdepth 3 -type f -iname "*.zip" | head -1)
-
-            if [ -z "$ZIP" ]; then
-              echo "ERROR: Android ZIP not found!"
-              echo "Repository files:"
-              find . -maxdepth 3 -type f
-              exit 1
-            fi
-
-            echo "Found ZIP: $ZIP"
-            mkdir -p project
-            unzip -o "$ZIP" -d project
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: Updated ZIP not found"
+            echo "Upload the BACK_HOME_DESKTOP ZIP"
+            find . -maxdepth 3 -type f
+            exit 1
           fi
+
+          mkdir -p extracted
+          unzip -o "$ZIP" -d extracted
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Build Android APK
+      - name: Build APK
+        shell: bash
         run: |
-          SETTINGS=$(find . -name settings.gradle | head -1)
+          set -e
+          FILE=$(find extracted -name settings.gradle \
+            -type f | head -1)
 
-          if [ -z "$SETTINGS" ]; then
-            echo "ERROR: settings.gradle not found"
+          if [ -z "$FILE" ]; then
+            echo "ERROR: Android project not found"
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$SETTINGS")
-
+          PROJECT_DIR=$(dirname "$FILE")
           cd "$PROJECT_DIR"
 
-          gradle assembleDebug
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ASP-KUMAR-SCHOOL-HUB-APK
-          path: '**/app/build/outputs/apk/debug/*.apk'
+          path: extracted/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           
